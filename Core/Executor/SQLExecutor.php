@@ -2,7 +2,7 @@
 
 namespace Kaliop\eZMigrationBundle\Core\Executor;
 
-use eZ\Publish\Core\Persistence\Database\DatabaseHandler;
+use Doctrine\DBAL\Connection;
 use Kaliop\eZMigrationBundle\API\Value\MigrationStep;
 use Kaliop\eZMigrationBundle\API\ReferenceBagInterface;
 
@@ -24,7 +24,7 @@ class SQLExecutor extends AbstractExecutor
      * @param DatabaseHandler $dbHandler
      * @param ReferenceBagInterface $referenceResolver
      */
-    public function __construct(DatabaseHandler $dbHandler, ReferenceBagInterface $referenceResolver)
+    public function __construct(Connection $dbHandler, ReferenceBagInterface $referenceResolver)
     {
         $this->dbHandler = $dbHandler;
         $this->referenceResolver = $referenceResolver;

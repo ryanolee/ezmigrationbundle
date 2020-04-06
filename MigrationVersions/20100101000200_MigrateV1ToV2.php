@@ -32,7 +32,7 @@ class MigrateV1ToV2 implements MigrationInterface
         $this->legacyMigrationsDir = $this->container->get('ez_migration_bundle.helper.config.resolver')->getParameter('kaliop_bundle_migration.version_directory');
 
         $migrationStorageService = $this->container->get('ez_migration_bundle.storage_handler');
-        $this->dbHandler = $this->container->get('ezpublish.connection');
+        $this->dbHandler = $this->container->get('ezpublish.persistence.connection');
 
         $this->activeBundles = array();
         foreach ($this->container->get('kernel')->getBundles() as $bundle)
@@ -102,7 +102,7 @@ class MigrateV1ToV2 implements MigrationInterface
     private function tableExist($tableName)
     {
         /** @var \Doctrine\DBAL\Schema\AbstractSchemaManager $sm */
-        $sm = $this->dbHandler->getConnection()->getSchemaManager();
+        $sm = $this->dbHandler->getSchemaManager();
         foreach ($sm->listTables() as $table) {
             if ($table->getName() == $tableName) {
                 return true;
@@ -114,21 +114,15 @@ class MigrateV1ToV2 implements MigrationInterface
 
     private function loadLegacyMigrations()
     {
-        /** @var \eZ\Publish\Core\Persistence\Database\SelectQuery $q */
-        $q = $this->dbHandler->createSelectQuery();
+        $q = $this->dbHandler->createQueryBuilder();
         $q->select('version, bundle')
             ->from($this->legacyTableName)
-            ->orderBy('version', SelectQuery::ASC);
-        $stmt = $q->prepare();
+            ->orderBy('version', "ASC");
+        $stmt = $this->dbHandler->prepare((string)$q);
         $stmt->execute();
         $results = $stmt->fetchAll();
 
         return $results;
-    }
-
-    private function deleteLegacyMigration($version, $bundle)
-    {
-        $this->dbHandler->getConnection()->delete($this->legacyTableName, array('version' => $version, 'bundle' => $bundle));
     }
 
     /**

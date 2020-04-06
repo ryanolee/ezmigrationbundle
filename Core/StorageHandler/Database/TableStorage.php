@@ -2,7 +2,7 @@
 
 namespace Kaliop\eZMigrationBundle\Core\StorageHandler\Database;
 
-use eZ\Publish\Core\Persistence\Database\DatabaseHandler;
+use Doctrine\DBAL\Connection;
 use Kaliop\eZMigrationBundle\API\ConfigResolverInterface;
 
 abstract class TableStorage
@@ -33,7 +33,7 @@ abstract class TableStorage
      * @param ConfigResolverInterface $configResolver
      * @throws \Exception
      */
-    public function __construct(DatabaseHandler $dbHandler, $tableNameParameter, ConfigResolverInterface $configResolver = null)
+    public function __construct(Connection $dbHandler, $tableNameParameter, ConfigResolverInterface $configResolver = null)
     {
         $this->dbHandler = $dbHandler;
         $this->tableName = $configResolver ? $configResolver->getParameter($tableNameParameter) : $tableNameParameter;
@@ -46,7 +46,7 @@ abstract class TableStorage
      */
     protected function getConnection()
     {
-        return $this->dbHandler->getConnection();
+        return $this->dbHandler;//->getConnection();
     }
 
     /**
@@ -58,7 +58,7 @@ abstract class TableStorage
     protected function tableExist($tableName)
     {
         /** @var \Doctrine\DBAL\Schema\AbstractSchemaManager $sm */
-        $sm = $this->dbHandler->getConnection()->getSchemaManager();
+        $sm = $this->dbHandler->getSchemaManager();
         foreach ($sm->listTables() as $table) {
             if ($table->getName() == $tableName) {
                 return true;
