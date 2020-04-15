@@ -2,15 +2,16 @@
 
 namespace Kaliop\eZMigrationBundle\Core\Executor;
 
-use eZ\Publish\API\Repository\Values\User\Role;
 use eZ\Publish\API\Repository\RoleService;
 use eZ\Publish\API\Repository\UserService;
-use Kaliop\eZMigrationBundle\API\Collection\RoleCollection;
-use Kaliop\eZMigrationBundle\API\MigrationGeneratorInterface;
-use Kaliop\eZMigrationBundle\API\EnumerableMatcherInterface;
-use Kaliop\eZMigrationBundle\Core\Helper\LimitationConverter;
-use Kaliop\eZMigrationBundle\Core\Matcher\RoleMatcher;
+use eZ\Publish\API\Repository\Values\User\Role;
+use eZ\Publish\API\Repository\Values\User\Policy;
 use eZ\Publish\API\Repository\Values\User\Limitation;
+use Kaliop\eZMigrationBundle\Core\Matcher\RoleMatcher;
+use Kaliop\eZMigrationBundle\API\Collection\RoleCollection;
+use Kaliop\eZMigrationBundle\API\EnumerableMatcherInterface;
+use Kaliop\eZMigrationBundle\API\MigrationGeneratorInterface;
+use Kaliop\eZMigrationBundle\Core\Helper\LimitationConverter;
 
 /**
  * Handles role migrations.
@@ -96,7 +97,10 @@ class RoleManager extends RepositoryExecutor implements MigrationGeneratorInterf
                 $update = $roleService->newRoleUpdateStruct();
                 $newRoleName = $this->referenceResolver->resolveReference($step->dsl['new_name']);
                 $update->identifier = $this->referenceResolver->resolveReference($newRoleName);
-                $role = $roleService->updateRole($role, $update);
+        
+                $draft = $roleService->createRoleDraft($role);
+                $roleService->updateRoleDraft($draft, $update);
+                $roleService->publishRoleDraft($draft);
             }
 
             if (isset($step->dsl['policies'])) {
@@ -106,7 +110,7 @@ class RoleManager extends RepositoryExecutor implements MigrationGeneratorInterf
                 // TODO: Check and update policies instead of remove and add.
                 $policies = $role->getPolicies();
                 foreach ($policies as $policy) {
-                    $roleService->deletePolicy($policy);
+                    $this->deletePolicy($role, $roleService, $policy);
                 }
 
                 foreach ($ymlPolicies as $ymlPolicy) {
@@ -393,7 +397,7 @@ class RoleManager extends RepositoryExecutor implements MigrationGeneratorInterf
 
                         $user = $userService->loadUser($userId);
 
-                        $roleService->unassignRoleFromUser($role, $user);
+                        //$this->unassignRoleFromUser($role, $user);
                     }
                     break;
                 case 'group':
@@ -401,7 +405,7 @@ class RoleManager extends RepositoryExecutor implements MigrationGeneratorInterf
                         $groupId = $this->referenceResolver->resolveReference($groupId);
 
                         $group = $userService->loadUserGroup($groupId);
-                        $roleService->unassignRoleFromUserGroup($role, $group);
+                        //$roleService->unassignRoleFromUserGroup($role, $group);
                     }
                     break;
                 default:
@@ -428,6 +432,29 @@ class RoleManager extends RepositoryExecutor implements MigrationGeneratorInterf
             }
         }
 
-        $roleService->addPolicy($role, $policyCreateStruct);
+        $draft = $roleService->createRoleDraft($role);
+        $roleService->addPolicyByRoleDraft($draft, $policyCreateStruct);
+        $roleService->publishRoleDraft($draft);
+    }
+
+    /**
+     * Delete policies from a given role 
+     *
+     * @param \eZ\Publish\API\Repository\Values\User\Role $role
+     * @param \eZ\Publish\API\Repository\RoleService $roleService
+     * @param  \eZ\Publish\API\Repository\Values\User\Policy $policy
+     * @param array $policy
+     */
+    protected function deletePolicy(Role $role, RoleService $roleService, Policy $policy)
+    {
+        $draft = $roleService->createRoleDraft($role);
+        foreach ($draft->getPolicies() as $policyDraft) {
+            if ($policyDraft->originalId == $policy->id) {
+                $roleService->removePolicyByRoleDraft($draft, $policyDraft);
+                $roleService->publishRoleDraft($draft);
+
+                return;
+            }
+        }
     }
 }
